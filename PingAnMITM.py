@@ -6,6 +6,7 @@ import datetime
 class PingAnMITM:
     def __init__(self):
         # use fake ones
+        self.use_fake_id=False
         self.name="bibibi"
         self.stdnum=20187695751
         self.phone=18708647894
@@ -191,59 +192,60 @@ class PingAnMITM:
             return
             
         ctx.log.warn("path: %s" % flow.request.path)
-        if flow.request.path.startswith("/shiroApi/wx/getWxSession"):
-            resp={
-                "status":1,
-                "msg":"登录成功",
-                "data":{
-                    "Authorization":"00000000-0000-0000-0000-000000000000",
-                    "name":self.name,
-                    "username":str(self.stdnum),
-                },
-                "expire":0,
-            }
-            ctx.log.warn("got getWxSession")
-            flow.response = http.HTTPResponse.make(200, json.dumps(resp))
-            return
-        if flow.request.path.startswith("/shiroApi/selfInfo"):
-            resp={
-                "status":1,
-                "msg":"200 OK",
-                "data":self.userinfo(),
-                "expire":0
-            }
-            ctx.log.warn("got selfinfo")
-            flow.response = http.HTTPResponse.make(200, json.dumps(resp))
-            return
-        if flow.request.path.startswith("/pipe/pass/getObjectQrcode"):
-            qrtime=(self.qrbegintime-datetime.datetime.now()).seconds
-            if qrtime<=0 or qrtime>1000:
-                qrtime=300
-                self.qrbegintime=datetime.datetime.now()+datetime.timedelta(seconds=qrtime)
-            resp={
-                "status":1,
-                "msg":"200 OK",
-                "data":{
-                    "type":1,
-                    "picPath":"12345",
-                    "ttl":qrtime
-                },
-                "expire":0
-            }
-            ctx.log.warn("got getObjectQrcode")
-            flow.response = http.HTTPResponse.make(200, json.dumps(resp))
-            return
-        if flow.request.path.startswith("/qrcode12345"):
-            ctx.log.warn("got qrcode")
-            with open("code.png", "rb") as f:
-                flow.response = http.HTTPResponse.make(200, f.read())
-            return
+        if self.use_fake_id:
+            if flow.request.path.startswith("/shiroApi/wx/getWxSession"):
+                resp={
+                    "status":1,
+                    "msg":"登录成功",
+                    "data":{
+                        "Authorization":"00000000-0000-0000-0000-000000000000",
+                        "name":self.name,
+                        "username":str(self.stdnum),
+                    },
+                    "expire":0,
+                }
+                ctx.log.warn("got getWxSession")
+                flow.response = http.HTTPResponse.make(200, json.dumps(resp))
+                return
+            if flow.request.path.startswith("/shiroApi/selfInfo"):
+                resp={
+                    "status":1,
+                    "msg":"200 OK",
+                    "data":self.userinfo(),
+                    "expire":0
+                }
+                ctx.log.warn("got selfinfo")
+                flow.response = http.HTTPResponse.make(200, json.dumps(resp))
+                return
+            if flow.request.path.startswith("/pipe/pass/getObjectQrcode"):
+                qrtime=(self.qrbegintime-datetime.datetime.now()).seconds
+                if qrtime<=0 or qrtime>1000:
+                    qrtime=300
+                    self.qrbegintime=datetime.datetime.now()+datetime.timedelta(seconds=qrtime)
+                resp={
+                    "status":1,
+                    "msg":"200 OK",
+                    "data":{
+                        "type":1,
+                        "picPath":"12345",
+                        "ttl":qrtime
+                    },
+                    "expire":0
+                }
+                ctx.log.warn("got getObjectQrcode")
+                flow.response = http.HTTPResponse.make(200, json.dumps(resp))
+                return
+            if flow.request.path.startswith("/qrcode12345"):
+                ctx.log.warn("got qrcode")
+                with open("code.png", "rb") as f:
+                    flow.response = http.HTTPResponse.make(200, f.read())
+                return
         if flow.request.path.startswith("/passObjectApi/temp/sign"):
             if "controllerId" not in flow.request.query.keys():
                 ctx.log.warn("can not get controllerId from %s" % flow.request.pretty_url)
                 flow.response = http.HTTPResponse.make(404)
                 return
-            if flow.request.query["controllerId"]=="1000020$7$0$0": # out
+            if flow.request.query["controllerId"]=="1000020$7$0$0" or flow.request.query["controllerId"]=="1000000$7$0$0" : # out
                 resp={
                     "status":1,
                     "msg":"研究生用户，出校登记成功！",
@@ -255,7 +257,7 @@ class PingAnMITM:
                         "lastEditor":None,
                         "passTimeServer":datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         "passStatus":"研究生用户，出校登记成功！",
-                        "controllerId":"1000020$7$0$0",
+                        "controllerId":flow.request.query["controllerId"],
                         "loginId":str(self.stdnum),
                         "auditType":"",
                         "userInfo":json.dumps(self.userinfo())
@@ -264,7 +266,7 @@ class PingAnMITM:
                 ctx.log.warn("got sign out")
                 flow.response = http.HTTPResponse.make(200, json.dumps(resp))
                 return
-            elif flow.request.query["controllerId"]=="1000017$7$0$0": # in
+            else: # in
                 resp={
                     "status":1,
                     "msg":"研究生用户，入校授权有效！",
@@ -276,7 +278,7 @@ class PingAnMITM:
                         "lastEditor":None,
                         "passTimeServer":datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         "passStatus":"研究生用户，入校授权有效！",
-                        "controllerId":"1000017$7$0$0",
+                        "controllerId":flow.request.query["controllerId"],
                         "loginId":str(self.stdnum),
                         "auditType":"",
                         "userInfo":json.dumps(self.userinfo())
@@ -284,10 +286,6 @@ class PingAnMITM:
                 }
                 ctx.log.warn("got sign in")
                 flow.response = http.HTTPResponse.make(200, json.dumps(resp))
-                return
-            else:
-                ctx.log.warn("unknown controllerId %s" % flow.request.query["controllerId"])
-                flow.response = http.HTTPResponse.make(404)
                 return
 
 addons = [
